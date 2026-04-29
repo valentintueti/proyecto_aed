@@ -1,6 +1,16 @@
 #include <iostream>
 
 template <typename T>
+struct Detalle{
+    int row;
+    int column;
+    HeadNode<T>* firstRow;
+    HeadNode<T>* firstCol;
+
+    Detalle(): row(0), column(0), firstRow(nullptr), firstCol(nullptr){}
+};
+
+template <typename T>
 struct Node {
     T data;
     Node<T>* nextRow;
