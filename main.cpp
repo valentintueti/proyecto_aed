@@ -1,37 +1,20 @@
 #include <iostream>
 
 template <typename T>
-struct Detalle{
-    int row;
-    int column;
-    HeadNode<T>* firstRow;
-    HeadNode<T>* firstCol;
-
-    Detalle(): row(0), column(0), firstRow(nullptr), firstCol(nullptr){}
-};
+struct Node;
 
 template <typename T>
-struct Node {
-    T data;
-    Node<T>* nextRow;
-    Node<T>* nextCol;
+struct HeadNode;
 
-    Node(T data_): data(data_), nextRow(nullptr), nextCol(nullptr){}
+template <typename T>
+struct Detalle;
 
-};
+
 
 template<typename T>
-struct HeadNode {
-    int index;
-    HeadNode<T>* next;
-    Node<T>* first;
-
-    HeadNode(int idx): index(idx), next(nullptr), first(nullptr){}
-};
-
-template<typename T>
-class Spreadsheet {
+class SparseMatrix {
 private:
+    Detalle<T>* detalle;
     HeadNode<T>* rowHead;
     HeadNode<T>* colHead;
 
@@ -59,7 +42,7 @@ private:
         return new_header;
     }
 public:
-    Spreadsheet(int n=1000, int m): n_rows(n), n_col(m), colHead(nullptr), rowHead(nullptr){}
+    SparseMatrix(int n=1000, int m): n_rows(n), n_col(m), colHead(nullptr), rowHead(nullptr), detalle(nullptr){}
     void set(int i, int j, T value);
     T get(int i, int j);
     bool update(int i, int j, T value);
@@ -74,6 +57,36 @@ public:
     T max_range(int i1, int j1, int i2, int j2);
     T min_range(int i1, int j1, int i2, int j2);
     double avg_range(int i1, int j1, int i2, int j2);
+};
+
+
+template <typename T>
+struct Detalle{
+    int row;
+    int column;
+    HeadNode<T>* firstRow;
+    HeadNode<T>* firstCol;
+
+    Detalle(): row(0), column(0), firstRow(nullptr), firstCol(nullptr){}
+};
+
+template <typename T>
+struct Node {
+    T data;
+    Node<T>* nextRow;
+    Node<T>* nextCol;
+
+    Node(T data_): data(data_), nextRow(nullptr), nextCol(nullptr){}
+
+};
+
+template<typename T>
+struct HeadNode {
+    int index;
+    HeadNode<T>* next;
+    Node<T>* first;
+
+    HeadNode(int idx): index(idx), next(nullptr), first(nullptr){}
 };
 
 int main() {
