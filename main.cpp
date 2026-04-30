@@ -59,17 +59,6 @@ public:
     double avg_range(int i1, int j1, int i2, int j2);
 };
 
-
-template <typename T>
-struct Detalle{
-    int row;
-    int column;
-    HeadNode<T>* firstRow;
-    HeadNode<T>* firstCol;
-
-    Detalle(): row(0), column(0), firstRow(nullptr), firstCol(nullptr){}
-};
-
 template <typename T>
 struct Node {
     T data;
@@ -89,6 +78,16 @@ struct HeadNode {
     Node<T>* first;
 
     HeadNode(int idx): index(idx), next(nullptr), first(nullptr){}
+};
+
+template <typename T>
+struct Detalle{
+    int row;
+    int column;
+    HeadNode<T>* firstRow;
+    HeadNode<T>* firstCol;
+
+    Detalle(): row(0), column(0), firstRow(nullptr), firstCol(nullptr){}
 };
 
 int main() {
