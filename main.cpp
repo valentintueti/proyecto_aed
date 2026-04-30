@@ -73,6 +73,8 @@ struct Detalle{
 template <typename T>
 struct Node {
     T data;
+    int row;
+    int col;
     Node<T>* nextRow;
     Node<T>* nextCol;
 
