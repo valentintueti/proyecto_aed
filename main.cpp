@@ -6,15 +6,10 @@ struct Node;
 template <typename T>
 struct HeadNode;
 
-template <typename T>
-struct Detalle;
-
-
 
 template<typename T>
 class SparseMatrix {
 private:
-    Detalle<T>* detalle;
     HeadNode<T>* rowHead;
     HeadNode<T>* colHead;
 
@@ -42,7 +37,7 @@ private:
         return new_header;
     }
 public:
-    SparseMatrix(int n=1000, int m): n_rows(n), n_col(m), colHead(nullptr), rowHead(nullptr), detalle(nullptr){}
+    SparseMatrix(int n=1000, int m): n_rows(n), n_col(m), colHead(nullptr), rowHead(nullptr) {}
     void set(int i, int j, T value);
     T get(int i, int j);
     bool update(int i, int j, T value);
@@ -59,16 +54,6 @@ public:
     double avg_range(int i1, int j1, int i2, int j2);
 };
 
-
-template <typename T>
-struct Detalle{
-    int row;
-    int column;
-    HeadNode<T>* firstRow;
-    HeadNode<T>* firstCol;
-
-    Detalle(): row(0), column(0), firstRow(nullptr), firstCol(nullptr){}
-};
 
 template <typename T>
 struct Node {
