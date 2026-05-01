@@ -13,8 +13,9 @@ private:
     HeadNode<T>* rowHead;
     HeadNode<T>* colHead;
 
-    int n_rows;
-    int n_col;
+    // Tamaño de la Matriz
+    int maxRow;
+    int maxCol;
 
     HeadNode<T>* getOrCreateHead(HeadNode<T>*& list, int idx) {
         HeadNode<T>* prev = nullptr;
@@ -54,7 +55,7 @@ public:
     double avg_range(int i1, int j1, int i2, int j2);
 };
 
-
+// Clase celda
 template <typename T>
 struct Node {
     T data;
@@ -69,6 +70,7 @@ struct Node {
 
 };
 
+// Clase índice
 template<typename T>
 struct HeadNode {
     int index;
