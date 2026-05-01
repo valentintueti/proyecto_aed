@@ -37,7 +37,7 @@ private:
         return new_header;
     }
 public:
-    SparseMatrix(int n=1000, int m): n_rows(n), n_col(m), colHead(nullptr), rowHead(nullptr) {}
+    SparseMatrix(): n_rows(0), n_col(0), colHead(nullptr), rowHead(nullptr){}
     void set(int i, int j, T value);
     T get(int i, int j);
     bool update(int i, int j, T value);
@@ -75,6 +75,7 @@ struct HeadNode {
 
     HeadNode(int idx): index(idx), next(nullptr), first(nullptr){}
 };
+
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
