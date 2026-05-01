@@ -60,10 +60,12 @@ struct Node {
     T data;
     int row;
     int col;
-    Node<T>* nextRow;
-    Node<T>* nextCol;
+    Node<T>* nextInRow;
+    Node<T>* nextInCol;
+    Node<T>* prevInRow;
+    Node<T>* prevInCol;
 
-    Node(T data_): data(data_), nextRow(nullptr), nextCol(nullptr){}
+    Node(T data_): data(data_), nextInRow(nullptr), nextInCol(nullptr), prevInCol(nullptr), prevInRow(nullptr){}
 
 };
 
