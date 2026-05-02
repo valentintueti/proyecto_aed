@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdexcept>
 
 template <typename T>
 struct Node;
@@ -83,7 +84,37 @@ public:
         if(currCol) currCol->prevInCol = newNode;
 
     }
-    T get(int i, int j);
+
+    // Consulta
+    T get(int i, int j) {
+        if (i < 0 || j < 0 || i > maxRow || j > maxCol) {
+            throw std::out_of_range("Indices out of bounds");
+        }
+
+        HeadNode<T>* temp1 = rowHead;
+
+        while (temp1 != nullptr && temp1->index < i) {
+            temp1 = temp1->next;
+        }
+
+        if (temp1 == nullptr || temp1->index != i) {
+            throw std::runtime_error("Row index not found");
+        }
+
+        Node<T>* temp2 = temp1->first;
+
+        while (temp2 != nullptr && temp2->col < j) {
+            temp2 = temp2->nextInRow;
+        }
+
+        if (temp2 == nullptr || temp2->col != j) {
+            throw std::runtime_error("Column index not found in row");
+        }
+
+        return temp2->data;
+    }
+
+}
     bool update(int i, int j, T value);
     void remove(int i, int j);
 
