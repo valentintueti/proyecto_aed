@@ -38,7 +38,7 @@ private:
         return new_header;
     }
 public:
-    SparseMatrix(): n_rows(0), n_col(0), colHead(nullptr), rowHead(nullptr){}
+    SparseMatrix(): maxRow(0), maxCol(0), colHead(nullptr), rowHead(nullptr){}
     void set(int i, int j, T value);
     T get(int i, int j);
     bool update(int i, int j, T value);
