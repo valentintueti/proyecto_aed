@@ -147,11 +147,9 @@ public:
         if (i < 0 || j < 0 || i > maxRow || j > maxCol)
             throw std::out_of_range("Indexes out of bounds");
 
-        HeadNode<T>* rowPrev = nullptr;
         HeadNode<T>* row = rowHead;
 
         while (row && row->index < i) {
-            rowPrev = row;
             row = row->next;
         }
 
@@ -164,11 +162,9 @@ public:
 
         if (!curr || curr->col != j) return false;
 
-        HeadNode<T>* colPrev = nullptr;
         HeadNode<T>* col = colHead;
 
         while (col && col->index < j) {
-            colPrev = col;
             col = col->next;
         }
 
@@ -195,8 +191,79 @@ public:
         return true;
     }
 
-    bool remove_row(int i);
-    bool remove_col(int j);
+    bool remove_row(int i) {
+        if (i < 0 || i > maxRow)
+            throw std::out_of_range("Index out of bounds");
+        HeadNode<T>* rowPrev = nullptr;
+        HeadNode<T>* row = rowHead;
+        while (row && row->index < i) {
+            rowPrev = row;
+            row = row->next;
+        }
+        if (!row || row->index != i)
+            return false;
+        Node<T>* curr = row->first;
+        while (curr) {
+            Node<T>* next = curr->nextInRow;
+            HeadNode<T>* col = colHead;
+            while (col && col->index < curr->col)
+                col = col->next;
+
+            if (col) {
+                if (curr->prevInCol)
+                    curr->prevInCol->nextInCol = curr->nextInCol;
+                else
+                    col->first = curr->nextInCol;
+                if (curr->nextInCol)
+                    curr->nextInCol->prevInCol = curr->prevInCol;
+            }
+            delete curr;
+            curr = next;
+        }
+        if (rowPrev)
+            rowPrev->next = row->next;
+        else
+            rowHead = row->next;
+        delete row;
+        return true;
+    }
+
+
+    bool remove_col(int j) {
+        if (j < 0 || j > maxCol)
+            throw std::out_of_range("Index out of bounds");
+        HeadNode<T>* colPrev = nullptr;
+        HeadNode<T>* col = colHead;
+        while (col && col->index < i) {
+            colPrev = col;
+            col = col->next;
+        }
+        if (!col || col->index != j)
+            return false;
+        Node<T>* curr = col->first;
+        while (curr) {
+            Node<T>* next = curr->nextInCol;
+            HeadNode<T>* row = rowHead;
+            while (row && row->index < curr->row)
+                row = row->next;
+            if (row) {
+                if (curr->prevInRow)
+                    curr->prevInRow->nextInRow = curr->nextInRow;
+                else
+                    row->first = curr->nextInRow;
+                if (curr->nextInRow)
+                    curr->nextInRow->prevInRow = curr->prevInRow;
+            }
+            delete curr;
+            curr = next;
+        }
+        if (colPrev)
+            colPrev->next = col->next;
+        else
+            colHead = col->next;
+        delete col;
+        return true;
+    }
     bool remove_range(int i1, int j1, int i2, int j2);
 
     // Suma de todos los elementos en una fila
