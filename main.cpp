@@ -19,6 +19,7 @@ private:
     int maxRow;
     int maxCol;
 
+    // Consulta o creación de índice de fila o columna
     HeadNode<T>* getOrCreateHead(HeadNode<T>*& list, int idx) {
         HeadNode<T>* prev = nullptr;
         HeadNode<T>* curr = list;
@@ -42,6 +43,7 @@ private:
 public:
     SparseMatrix(): maxRow(-1), maxCol(-1), colHead(nullptr), rowHead(nullptr){}
 
+    // Insertar celda
     void set(int i, int j, T value) {
         HeadNode<T>* row = getOrCreateHead(rowHead, i);
         HeadNode<T>* column = getOrCreateHead(colHead, j);
@@ -87,7 +89,6 @@ public:
 
         if (i > maxRow) maxRow = i;
         if(j > maxCol) maxCol = i;
-
     }
 
     // Consultar celda
@@ -194,6 +195,7 @@ public:
         return true;
     }
 
+    // Eliminar fila
     bool remove_row(int i) {
         if (i < 0 || i > maxRow)
             throw std::out_of_range("Index out of bounds");
@@ -231,7 +233,7 @@ public:
         return true;
     }
 
-
+    // Eliminar columna
     bool remove_col(int j) {
         if (j < 0 || j > maxCol)
             throw std::out_of_range("Index out of bounds");
@@ -267,6 +269,8 @@ public:
         delete col;
         return true;
     }
+
+    // Eliminar rango de celdas
     bool remove_range(int i1, int j1, int i2, int j2) {
         if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
             throw std::out_of_range("Indexes out of bounds");
