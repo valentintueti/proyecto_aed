@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
 
 template <typename T>
 struct Node;
@@ -139,7 +140,7 @@ public:
 
         temp2->data = value; // Actualización de celda
         return true;
-    };
+    }
 
     // Eliminar celda
     bool remove(int i, int j) {
@@ -196,8 +197,62 @@ public:
 
     bool remove_row(int i);
     bool remove_col(int j);
-
     bool remove_range(int i1, int j1, int i2, int j2);
+
+    // Suma de todos los elementos en una fila
+    T sum_row(int i){
+        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
+
+        if (i < 0 || i > maxRow) { // Índice negativo o fuera del índice de fila máximo en la matriz
+            throw std::out_of_range("Index out of bounds");
+        }
+
+        HeadNode<T>* temp1 = rowHead;
+        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
+            temp1 = temp1->next;
+        }
+
+        if (temp1 == nullptr || temp1->index != i) {
+            return T{};
+        }
+
+        Node<T>* temp2 = temp1->first;
+        T sumatoria{};
+        while (temp2 != nullptr) { // Recorrer celdas en la fila
+            sumatoria += temp2->data;
+            temp2 = temp2->nextInRow;
+        }
+
+        return sumatoria; // Retornar suma
+    }
+
+    // Suma de todos los elementos en una columna
+    T sum_col(int j){
+        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
+
+        if (j < 0 || j > maxCol) { // Índice negativo o fuera del índice de columna máximo en la matriz
+            throw std::out_of_range("Index out of bounds");
+        }
+
+        HeadNode<T>* temp1 = colHead;
+        while (temp1 != nullptr && temp1->index < j) { // Recorrer índices de columna
+            temp1 = temp1->next;
+        }
+
+        if (temp1 == nullptr || temp1->index != j) {
+            return T{};
+        }
+
+        Node<T>* temp2 = temp1->first;
+        T sumatoria{};
+        while (temp2 != nullptr) { // Recorrer celdas en la columna
+            sumatoria += temp2->data;
+            temp2 = temp2->nextInCol;
+        }
+
+        return sumatoria; // Retornar suma
+    }
+
 
     T sum_range(int i1, int j1, int i2, int j2);
     T max_range(int i1, int j1, int i2, int j2);
