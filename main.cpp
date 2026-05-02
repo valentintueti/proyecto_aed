@@ -40,6 +40,7 @@ private:
     }
 public:
     SparseMatrix(): maxRow(-1), maxCol(-1), colHead(nullptr), rowHead(nullptr){}
+
     void set(int i, int j, T value) {
         HeadNode<T>* row = getOrCreateHead(rowHead, i);
         HeadNode<T>* column = getOrCreateHead(colHead, j);
@@ -85,7 +86,7 @@ public:
 
     }
 
-    // Consulta
+    // Consultar celda
     T get(int i, int j) {
         if (i < 0 || j < 0 || i > maxRow || j > maxCol) { // Índices negativos o fuera del tamaño de la matriz
             throw std::out_of_range("Indexes out of bounds");
@@ -112,8 +113,35 @@ public:
         return temp2->data;
     }
 
+    // Modificar celda
+    bool update(int i, int j, T value){
+        if (i < 0 || j < 0 || i > maxRow || j > maxCol) { // Índices negativos o fuera del tamaño de la matriz
+            return false;
+        }
 
-    bool update(int i, int j, T value);
+        HeadNode<T>* temp1 = rowHead;
+        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
+            temp1 = temp1->next;
+        }
+
+        if (temp1 == nullptr || temp1->index != i) {
+            return false;
+        }
+
+        Node<T>* temp2 = temp1->first;
+        while (temp2 != nullptr && temp2->col < j) { // Recorrer celdas en la fila
+            temp2 = temp2->nextInRow;
+        }
+
+        if (temp2 == nullptr || temp2->col != j) {
+            return false;
+        }
+
+        temp2->data = value; // Actualización de celda
+        return true;
+    };
+
+    // Eliminar celda
     bool remove(int i, int j) {
         if (i < 0 || j < 0 || i > maxRow || j > maxCol)
             throw std::out_of_range("Indexes out of bounds");
