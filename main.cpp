@@ -87,13 +87,12 @@ public:
 
     // Consulta
     T get(int i, int j) {
-        if (i < 0 || j < 0 || i > maxRow || j > maxCol) {
+        if (i < 0 || j < 0 || i > maxRow || j > maxCol) { // Índices negativos o fuera del tamaño de la matriz
             throw std::out_of_range("Indices out of bounds");
         }
 
         HeadNode<T>* temp1 = rowHead;
-
-        while (temp1 != nullptr && temp1->index < i) {
+        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
             temp1 = temp1->next;
         }
 
@@ -102,8 +101,7 @@ public:
         }
 
         Node<T>* temp2 = temp1->first;
-
-        while (temp2 != nullptr && temp2->col < j) {
+        while (temp2 != nullptr && temp2->col < j) { // Recorrer celdas en la fila
             temp2 = temp2->nextInRow;
         }
 
