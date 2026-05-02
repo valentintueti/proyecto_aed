@@ -38,8 +38,51 @@ private:
         return new_header;
     }
 public:
-    SparseMatrix(): maxRow(0), maxCol(0), colHead(nullptr), rowHead(nullptr){}
-    void set(int i, int j, T value);
+    SparseMatrix(): maxRow(-1), maxCol(-1), colHead(nullptr), rowHead(nullptr){}
+    void set(int i, int j, T value) {
+        HeadNode<T>* row = getOrCreateHead(rowHead, i);
+        HeadNode<T>* column = getOrCreateHead(colHead, j);
+
+        Node<T>* prevRow = nullptr;
+        Node<T>* currRow = row->first;
+
+        while(currRow and currRow->col < j) {
+            prevRow = currRow;
+            currRow = currRow->nextInRow;
+        }
+
+        if(currRow and currRow->col == j) {
+            currRow->data = value;
+            return;
+        }
+
+        Node<T>* newNode = new Node(value, i, j);
+
+        newNode->nextInRow = currRow;
+        newNode->prevInRow = prevRow;
+
+        if(prevRow) prevRow->nextInRow = newNode;
+        else row->first = newNode;
+
+        if(currRow) currRow->prevInRow = newNode;
+
+        Node<T>* prevCol = nullptr;
+        Node<T>* currCol = column->first;
+
+        while(currCol and currCol->row < i) {
+            prevCol = currCol;
+            currCol = currCol->nextInCol;
+        }
+
+        newNode->nextInCol = currCol;
+        newNode->prevInCol = prevCol;
+
+        if(prevCol) prevCol->nextInCol = newNode;
+        else column->first = newNode;
+
+        if(currCol) currCol->prevInCol = newNode;
+
+    }
     T get(int i, int j);
     bool update(int i, int j, T value);
     void remove(int i, int j);
@@ -68,6 +111,7 @@ struct Node {
 
     Node(T data_): data(data_), nextInRow(nullptr), nextInCol(nullptr), prevInCol(nullptr), prevInRow(nullptr){}
 
+    Node(T data_, int row_, int col_): data(data_), row(row_), col(col_), nextInRow(nullptr), nextInCol(nullptr), prevInCol(nullptr), prevInRow(nullptr){}
 };
 
 // Clase índice
