@@ -234,7 +234,7 @@ public:
             throw std::out_of_range("Index out of bounds");
         HeadNode<T>* colPrev = nullptr;
         HeadNode<T>* col = colHead;
-        while (col && col->index < i) {
+        while (col && col->index < j) {
             colPrev = col;
             col = col->next;
         }
