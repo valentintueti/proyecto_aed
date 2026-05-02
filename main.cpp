@@ -88,7 +88,7 @@ public:
     // Consulta
     T get(int i, int j) {
         if (i < 0 || j < 0 || i > maxRow || j > maxCol) {
-            throw std::out_of_range("Indices out of bounds");
+            throw std::out_of_range("Indexes out of bounds");
         }
 
         HeadNode<T>* temp1 = rowHead;
@@ -98,7 +98,7 @@ public:
         }
 
         if (temp1 == nullptr || temp1->index != i) {
-            throw std::runtime_error("Row index not found");
+            throw std::out_of_range("Row index not found");
         }
 
         Node<T>* temp2 = temp1->first;
@@ -108,15 +108,65 @@ public:
         }
 
         if (temp2 == nullptr || temp2->col != j) {
-            throw std::runtime_error("Column index not found in row");
+            throw std::out_of_range("Column index not found in row");
         }
 
         return temp2->data;
     }
 
-}
+
     bool update(int i, int j, T value);
-    void remove(int i, int j);
+    bool remove(int i, int j) {
+        if (i < 0 || j < 0 || i > maxRow || j > maxCol)
+            throw std::out_of_range("Indexes out of bounds");
+
+        HeadNode<T>* rowPrev = nullptr;
+        HeadNode<T>* row = rowHead;
+
+        while (row && row->index < i) {
+            rowPrev = row;
+            row = row->next;
+        }
+
+        if (!row || row->index != i) return false;
+
+        Node<T>* curr = row->first;
+        while (curr && curr->col < j) {
+            curr = curr->nextInRow;
+        }
+
+        if (!curr || curr->col != j) return false;
+
+        HeadNode<T>* colPrev = nullptr;
+        HeadNode<T>* col = colHead;
+
+        while (col && col->index < j) {
+            colPrev = col;
+            col = col->next;
+        }
+
+        if (!col || col->index != j) return false;
+
+        if (curr->prevInRow)
+            curr->prevInRow->nextInRow = curr->nextInRow;
+        else
+            row->first = curr->nextInRow;
+
+        if (curr->nextInRow)
+            curr->nextInRow->prevInRow = curr->prevInRow;
+
+        if (curr->prevInCol)
+            curr->prevInCol->nextInCol = curr->nextInCol;
+        else
+            col->first = curr->nextInCol;
+
+        if (curr->nextInCol)
+            curr->nextInCol->prevInCol = curr->prevInCol;
+
+        delete curr;
+
+        return true;
+    }
 
     bool remove_row(int i);
     bool remove_col(int j);
