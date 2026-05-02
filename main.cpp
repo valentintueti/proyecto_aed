@@ -97,7 +97,7 @@ public:
         }
 
         if (temp1 == nullptr || temp1->index != i) {
-            throw std::runtime_error("Row index not found");
+            return T{};
         }
 
         Node<T>* temp2 = temp1->first;
@@ -106,14 +106,18 @@ public:
         }
 
         if (temp2 == nullptr || temp2->col != j) {
-            throw std::runtime_error("Column index not found in row");
+            return T{};
         }
 
         return temp2->data;
     }
 
 }
-    bool update(int i, int j, T value);
+
+    //
+    bool update(int i, int j, T value){
+
+    };
     void remove(int i, int j);
 
     bool remove_row(int i);
