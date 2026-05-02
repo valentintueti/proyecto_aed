@@ -85,6 +85,9 @@ public:
 
         if(currCol) currCol->prevInCol = newNode;
 
+        if (i > maxRow) maxRow = i;
+        if(j > maxCol) maxCol = i;
+
     }
 
     // Consultar celda
@@ -264,7 +267,54 @@ public:
         delete col;
         return true;
     }
-    bool remove_range(int i1, int j1, int i2, int j2);
+    bool remove_range(int i1, int j1, int i2, int j2) {
+        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
+            throw std::out_of_range("Indexes out of bounds");
+
+
+        HeadNode<T>* row = rowHead;
+
+        while (row && row->index < i1)
+            row = row->next;
+
+        while (row && row->index <= i2) {
+
+            Node<T>* curr = row->first;
+
+            while (curr) {
+                Node<T>* next = curr->nextInRow;
+
+                if (curr->col >= j1 && curr->col <= j2) {
+
+                    if (curr->prevInRow)
+                        curr->prevInRow->nextInRow = curr->nextInRow;
+                    else
+                        row->first = curr->nextInRow;
+
+                    if (curr->nextInRow)
+                        curr->nextInRow->prevInRow = curr->prevInRow;
+
+                    if (curr->prevInCol)
+                        curr->prevInCol->nextInCol = curr->nextInCol;
+                    else {
+                        HeadNode<T>* col = colHead;
+                        while (col && col->index < curr->col)
+                            col = col->next;
+                        if (col)
+                            col->first = curr->nextInCol;
+                    }
+                    if (curr->nextInCol)
+                        curr->nextInCol->prevInCol = curr->prevInCol;
+
+                    delete curr;
+                }
+                curr = next;
+            }
+            row = row->next;
+        }
+
+        return true;
+    }
 
     // Suma de todos los elementos en una fila
     T sum_row(int i){
