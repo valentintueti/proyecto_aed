@@ -414,7 +414,7 @@ public:
     double avg_range(int i1, int j1, int i2, int j2) {
         static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
 
-        if (i1 < 0 or j1 < 0 or i2 > maxRow or j2 > maxCol or i1 > i2 or j1 > i2) throw std::out_of_range("Indexes out of bounds");
+        if (i1 < 0 or j1 < 0 or i2 > maxRow or j2 > maxCol or i1 > i2 or j1 > j2) throw std::out_of_range("Indexes out of bounds");
 
         double suma = 0;
         int count = 0;
@@ -425,7 +425,7 @@ public:
         while (row && row->index <= i2) {
             Node<T>* curr = row->first;
             while(curr) {
-                if(curr->col >= i1 && curr->col <=i2) {
+                if(curr->col >= j1 && curr->col <=j2) {
                     suma+= curr->data;
                     count++;
                 }
