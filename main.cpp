@@ -406,8 +406,10 @@ public:
         return sumatoria; // Retornar suma
     }
 
-
+    // Máximo valor en un rango de celdas
     T max_range(int i1, int j1, int i2, int j2);
+
+    // Mínimo valor en un rango de celdas
     T min_range(int i1, int j1, int i2, int j2);
 
     // Promedio de valores en un rango de celdas
