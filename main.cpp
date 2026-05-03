@@ -496,6 +496,28 @@ public:
         if (count == 0) return 0.0;
         return suma / count;
     }
+
+    struct CellInfo {
+        int row;
+        int col;
+        T data;
+    };
+
+    std::vector<CellInfo> getAllNodes() {
+        std::vector<CellInfo> result;
+
+        HeadNode<T>* row = rowHead;
+        while (row != nullptr) {
+            Node<T>* curr = row->first;
+            while (curr != nullptr) {
+                result.push_back({curr->row, curr->col, curr->data});
+                curr = curr->nextInRow;
+            }
+            row = row->next;
+        }
+
+        return result;
+    }
 };
 
 // Clase celda
@@ -523,6 +545,7 @@ struct HeadNode {
 
     HeadNode(int idx): index(idx), next(nullptr), first(nullptr){}
 };
+
 
 
 std::pair<int,int> parseCell(const std::string& input) {
