@@ -88,7 +88,7 @@ public:
         if(currCol) currCol->prevInCol = newNode;
 
         if (i > maxRow) maxRow = i;
-        if(j > maxCol) maxCol = i;
+        if(j > maxCol) maxCol = j;
     }
 
     // Consultar celda
@@ -407,10 +407,66 @@ public:
     }
 
     // Máximo valor en un rango de celdas
-    T max_range(int i1, int j1, int i2, int j2);
+    T max_range(int i1, int j1, int i2, int j2) {
+        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
+
+        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
+            throw std::out_of_range("Indexes out of bounds");
+
+        bool found = false;
+        T maxVal{};
+
+        HeadNode<T>* row = rowHead;
+        while (row && row->index < i1) row = row->next;
+
+        while (row && row->index <= i2) {
+            Node<T>* curr = row->first;
+            while (curr) {
+                if (curr->col >= j1 && curr->col <= j2) {
+                    if (!found || curr->data > maxVal) {
+                        maxVal = curr->data;
+                        found = true;
+                    }
+                }
+                curr = curr->nextInRow;
+            }
+            row = row->next;
+        }
+
+        if (!found) throw std::runtime_error("No elements in range");
+        return maxVal;
+    }
 
     // Mínimo valor en un rango de celdas
-    T min_range(int i1, int j1, int i2, int j2);
+    T min_range(int i1, int j1, int i2, int j2) {
+        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
+
+        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
+            throw std::out_of_range("Indexes out of bounds");
+
+        bool found = false;
+        T minVal{};
+
+        HeadNode<T>* row = rowHead;
+        while (row && row->index < i1) row = row->next;
+
+        while (row && row->index <= i2) {
+            Node<T>* curr = row->first;
+            while (curr) {
+                if (curr->col >= j1 && curr->col <= j2) {
+                    if (!found || curr->data < minVal) {
+                        minVal = curr->data;
+                        found = true;
+                    }
+                }
+                curr = curr->nextInRow;
+            }
+            row = row->next;
+        }
+
+        if (!found) throw std::runtime_error("No elements in range");
+        return minVal;
+    }
 
     // Promedio de valores en un rango de celdas
     double avg_range(int i1, int j1, int i2, int j2) {
