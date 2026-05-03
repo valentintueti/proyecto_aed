@@ -374,10 +374,43 @@ public:
         return sumatoria; // Retornar suma
     }
 
+    // Suma de valores en un rango de celdas
+    T sum_range(int i1, int j1, int i2, int j2){
+        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
 
-    T sum_range(int i1, int j1, int i2, int j2);
+        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2) {
+            throw std::out_of_range("Indexes out of bounds");
+        }
+
+        T sumatoria{};
+        HeadNode<T>* row = rowHead;
+        while (row != nullptr && row->index < i1){ // Saltar índices de fila anteriores al inicio del rango
+            row = row->next;
+        }
+
+        while (row != nullptr && row->index <= i2) { // Recorrer filas dentro del rango
+
+            Node<T>* curr = row->first;
+            while (curr != nullptr && curr->col < j1) { // Saltar columnas anteriores al inicio del rango
+                curr = curr->nextInRow;
+            }
+
+            while (curr != nullptr && curr->col <= j2) { // Sumar valores de celdas dentro del rango
+                sumatoria += curr->data;
+                curr = curr->nextInRow;
+            }
+
+            row = row->next;
+        }
+
+        return sumatoria; // Retornar suma
+    }
+
+
     T max_range(int i1, int j1, int i2, int j2);
     T min_range(int i1, int j1, int i2, int j2);
+
+    // Promedio de valores en un rango de celdas
     double avg_range(int i1, int j1, int i2, int j2) {
         static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
 
