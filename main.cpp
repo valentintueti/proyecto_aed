@@ -525,6 +525,25 @@ struct HeadNode {
 };
 
 
+std::pair<int,int> parseCell(const std::string& input) {
+    if (input.size() < 2) return {-1, -1};
+
+    char colChar = std::toupper(input[0]);
+    if (!std::isalpha(colChar)) return {-1, -1};
+
+    std::string rowStr = input.substr(1);
+    for (char c : rowStr)
+        if (!std::isdigit(c)) return {-1, -1};
+
+    int col = colChar - 'A';       // A=0, B=1, ..., Z=25
+    int row = std::stoi(rowStr) - 1; // 1=0, 2=1, ..., 1000=999
+
+    if (row < 0 || row >= 1000 || col < 0 || col >= 26)
+        return {-1, -1};
+
+    return {row, col};
+}
+
 int main() {
     std::cout << "Hello, World!" << std::endl;
     return 0;
