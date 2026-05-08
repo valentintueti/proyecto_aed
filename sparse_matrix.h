@@ -38,6 +38,7 @@ private:
     int maxCol;
 
     // Consulta o creación de índice de fila o columna
+    // Si k es el tamaño de list, tiene complejidad O(k)
     HeadNode<T>* getOrCreateHead(HeadNode<T>*& list, int idx) {
         HeadNode<T>* prev = nullptr;
         HeadNode<T>* curr = list;
@@ -63,14 +64,15 @@ public:
     SparseMatrix(): maxRow(-1), maxCol(-1), colHead(nullptr), rowHead(nullptr){}
 
     // Insertar celda
+    // La complejidad es O(i + j)
     void set(int i, int j, T value) {
-        HeadNode<T>* row = getOrCreateHead(rowHead, i);
-        HeadNode<T>* column = getOrCreateHead(colHead, j);
+        HeadNode<T>* row = getOrCreateHead(rowHead, i); // O(i)
+        HeadNode<T>* column = getOrCreateHead(colHead, j); //O(j)
 
         Node<T>* prevRow = nullptr;
         Node<T>* currRow = row->first;
 
-        while(currRow and currRow->col < j) {
+        while(currRow and currRow->col < j) { //O(j)
             prevRow = currRow;
             currRow = currRow->nextInRow;
         }
@@ -93,7 +95,7 @@ public:
         Node<T>* prevCol = nullptr;
         Node<T>* currCol = column->first;
 
-        while(currCol and currCol->row < i) {
+        while(currCol and currCol->row < i) { // O(i)
             prevCol = currCol;
             currCol = currCol->nextInCol;
         }
@@ -111,6 +113,7 @@ public:
     }
 
     // Consultar celda
+    // La complejidad es O(i + j)
     T get(int i, int j) const {
         if (i < 0 || j < 0)
             throw std::out_of_range("Indexes out of bounds");
@@ -118,7 +121,7 @@ public:
             return T{}; // celda vacía — más allá de los datos actuales
 
         HeadNode<T>* temp1 = rowHead;
-        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
+        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila, O(i)
             temp1 = temp1->next;
         }
 
@@ -127,7 +130,7 @@ public:
         }
 
         Node<T>* temp2 = temp1->first;
-        while (temp2 != nullptr && temp2->col < j) { // Recorrer celdas en la fila
+        while (temp2 != nullptr && temp2->col < j) { // Recorrer celdas en la fila, O(j)
             temp2 = temp2->nextInRow;
         }
 
@@ -139,13 +142,14 @@ public:
     }
 
     // Modificar celda
+    // La complejidad es O(i + j)
     bool update(int i, int j, T value){
         if (i < 0 || j < 0 || i > maxRow || j > maxCol) { // Índices negativos o fuera del tamaño de la matriz
             return false;
         }
 
         HeadNode<T>* temp1 = rowHead;
-        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
+        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila, O(i)
             temp1 = temp1->next;
         }
 
@@ -154,7 +158,7 @@ public:
         }
 
         Node<T>* temp2 = temp1->first;
-        while (temp2 != nullptr && temp2->col < j) { // Recorrer celdas en la fila
+        while (temp2 != nullptr && temp2->col < j) { // Recorrer celdas en la fila, O(j)
             temp2 = temp2->nextInRow;
         }
 
@@ -173,14 +177,14 @@ public:
 
         HeadNode<T>* row = rowHead;
 
-        while (row && row->index < i) {
+        while (row && row->index < i) { //O(i)
             row = row->next;
         }
 
         if (!row || row->index != i) return false;
 
         Node<T>* curr = row->first;
-        while (curr && curr->col < j) {
+        while (curr && curr->col < j) { // O(j)
             curr = curr->nextInRow;
         }
 
@@ -188,20 +192,23 @@ public:
 
         HeadNode<T>* col = colHead;
 
-        while (col && col->index < j) {
+        while (col && col->index < j) { // O(j)
             col = col->next;
         }
 
         if (!col || col->index != j) return false;
 
+        //Desconexión y eliminación en O(1)
         if (curr->prevInRow)
-            curr->prevInRow->nextInRow = curr->nextInRow;
+            curr->prevInRow->nextInRow = curr->nextInRow; // Si existe anterior, lo conectamos con el siguiente
         else
-            row->first = curr->nextInRow;
+            row->first = curr->nextInRow; // Sino, conectamos la cabecera con el siguiente
 
         if (curr->nextInRow)
-            curr->nextInRow->prevInRow = curr->prevInRow;
+            curr->nextInRow->prevInRow = curr->prevInRow; //Si existe siguiente, lo conectamos con el anterior
 
+
+        //Hacemos lo mismo para columnas
         if (curr->prevInCol)
             curr->prevInCol->nextInCol = curr->nextInCol;
         else
