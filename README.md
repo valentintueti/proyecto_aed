@@ -88,11 +88,11 @@ Encuentra el nodo y reenlaza los punteros `prevInRow → nextInRow` y `prevInCol
 
 #### `remove_row(i)` — Eliminar fila completa
 Recorre todos los nodos de la fila `i` y para cada uno corrige los punteros de columna.
-- **Complejidad:** `O(R + k × C)` donde `k` = nodos en la fila
+- **Complejidad:** `O(R + kC)` donde `k` = nodos en la fila
 
 #### `remove_col(j)` — Eliminar columna completa
 Similar a `remove_row` pero recorriendo la columna.
-- **Complejidad:** `O(C + m × R)` donde `m` = nodos en la columna
+- **Complejidad:** `O(C + mR)` donde `m` = nodos en la columna
 
 #### `remove_range(i1, j1, i2, j2)` — Eliminar rango rectangular
 Itera filas de `i1` a `i2`, y dentro de cada fila elimina los nodos en columnas `j1` a `j2`. El rango se ajusta automáticamente si excede los datos existentes.

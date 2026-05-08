@@ -5,7 +5,7 @@
 #include <cmath>
 #include <map>
 
-// ---- autocomplete data ----
+
 
 static const std::vector<std::string> CELL_COMPLETIONS = {
     "SUMA(", "MAX(", "MIN(", "PROMEDIO(", "MAXIMO(", "MINIMO(", "CONTAR("
@@ -32,7 +32,7 @@ static const std::map<std::string, std::string> FUNC_HINTS = {
     {"VER_COL",       "VER_COL(B)         → muestra col B"},
 };
 
-// ---- undo / clipboard ----
+
 
 static constexpr int MAX_UNDO = 30;
 
@@ -53,12 +53,12 @@ void SpreadsheetUI::undo() {
     auto snap = undoStack.back();
     undoStack.pop_back();
 
-    // Remove all current nodes
+
     auto current = mat.getAllNodes();
     for (auto& n : current) try { mat.remove(n.row, n.col); } catch(...) {}
     cellText.clear();
 
-    // Restore snapshot
+
     for (auto& e : snap) {
         mat.set(e.row, e.col, e.val);
         if (!e.formula.empty()) cellText[{e.row, e.col}] = e.formula;
@@ -96,7 +96,7 @@ void SpreadsheetUI::pasteAt(int startRow, int startCol) {
     }
 }
 
-// ---- formula range selection helpers ----
+
 
 bool SpreadsheetUI::isFormulaOpen() const {
     if (!editing || editText.empty() || editText[0] != '=') return false;
@@ -132,7 +132,7 @@ void SpreadsheetUI::insertFormulaRange(int r1, int c1, int r2, int c2) {
     updateSuggestions();
 }
 
-// ---- delete selection ----
+
 
 void SpreadsheetUI::executeDeleteSelection() {
     int r1 = std::min(selRow, selRow2 < 0 ? selRow : selRow2);
@@ -145,7 +145,7 @@ void SpreadsheetUI::executeDeleteSelection() {
     selRow2 = selCol2 = -1;
 }
 
-// ---- formula recalculation ----
+
 
 void SpreadsheetUI::recalcAllFormulas() {
     // Primero eliminar todos los valores de las celdas fórmula para evitar
@@ -194,7 +194,7 @@ bool SpreadsheetUI::loadFont() {
     return false;
 }
 
-// ---- cell data helpers ----
+
 
 static std::string formatNum(double v) {
     if (std::isnan(v))  return "#!VALOR!";
@@ -266,7 +266,7 @@ std::string SpreadsheetUI::getCellFormulaText(int r, int c) const {
 std::string SpreadsheetUI::getCellDisplayText(int r, int c) const {
     auto it = cellText.find({r, c});
     if (it != cellText.end()) {
-        // Formula cell: display the computed double stored in mat
+
         try {
             CellValue v = mat.get(r, c);
             if (auto* d = std::get_if<double>(&v)) return formatNum(*d);
@@ -287,7 +287,7 @@ int SpreadsheetUI::visibleMaxCol() const {
     return mc;
 }
 
-// ---- autocomplete ----
+
 
 void SpreadsheetUI::updateSuggestions() {
     suggestions.clear();
@@ -305,7 +305,7 @@ void SpreadsheetUI::updateSuggestions() {
         return;
     }
 
-    // Already inside a function call — no completion, hint handled in drawAutocomplete
+
     if (prefix.find('(') != std::string::npos) return;
 
     std::string up = toUpperStr(prefix);

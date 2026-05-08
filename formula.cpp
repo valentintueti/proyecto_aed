@@ -60,9 +60,9 @@ static std::string formatNum(double v) {
 }
 
 struct FuncCall {
-    std::string name; // uppercase
+    std::string name;
     std::string arg1;
-    std::string arg2; // empty if single-arg
+    std::string arg2;
     bool valid = false;
 };
 
