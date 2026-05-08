@@ -3,7 +3,10 @@
 
 #include <string>
 #include <utility>
+#include <variant>
 #include "sparse_matrix.h"
+
+using CellValue = std::variant<double, std::string>;
 
 // Column index <-> letter(s): 0=A, 25=Z, 26=AA, ...
 std::string colToStr(int c);
@@ -14,11 +17,11 @@ std::pair<int,int> parseCell(const std::string& input);
 
 // Evaluate a cell formula starting with '='.
 // Supports: =SUMA(A1:B5), =MAX(A1:B5), =A1+B2, =A1, =42
-double evalFormula(const std::string& formula, SparseMatrix<double>& mat);
+double evalFormula(const std::string& formula, SparseMatrix<CellValue>& mat);
 
 // Execute a toolbar command (without '=') and return a display string.
 // Read-only: SUMA, MAX, MIN, PROMEDIO, LISTAR, VER_FILA, VER_COL
 // Returns result string or error message.
-std::string execCommand(const std::string& cmd, SparseMatrix<double>& mat);
+std::string execCommand(const std::string& cmd, SparseMatrix<CellValue>& mat);
 
 #endif // FORMULA_H

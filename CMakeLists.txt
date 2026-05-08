@@ -3,7 +3,7 @@ project(PROYECTO)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(SFML_DIR "/usr/local/opt/sfml@2/lib/cmake/SFML")
+set(SFML_DIR "/opt/homebrew/opt/sfml/lib/cmake/SFML")
 
 add_executable(PROYECTO
     main.cpp

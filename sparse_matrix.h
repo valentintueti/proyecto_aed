@@ -3,8 +3,22 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
+#include <variant>
 #include <vector>
+
+template<typename T>
+inline double cellToDouble(const T& v) {
+    if constexpr (std::is_arithmetic_v<T>)
+        return static_cast<double>(v);
+    else
+        return 0.0;
+}
+inline double cellToDouble(const std::variant<double, std::string>& v) {
+    if (const auto* d = std::get_if<double>(&v)) return *d;
+    return 0.0;
+}
 
 template <typename T>
 struct Node;
@@ -44,6 +58,7 @@ private:
 
         return new_header;
     }
+    
 public:
     SparseMatrix(): maxRow(-1), maxCol(-1), colHead(nullptr), rowHead(nullptr){}
 
@@ -97,9 +112,10 @@ public:
 
     // Consultar celda
     T get(int i, int j) const {
-        if (i < 0 || j < 0 || i > maxRow || j > maxCol) { // Índices negativos o fuera del tamaño de la matriz
+        if (i < 0 || j < 0)
             throw std::out_of_range("Indexes out of bounds");
-        }
+        if (i > maxRow || j > maxCol)
+            return T{}; // celda vacía — más allá de los datos actuales
 
         HeadNode<T>* temp1 = rowHead;
         while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
@@ -276,8 +292,12 @@ public:
 
     // Eliminar rango de celdas
     bool remove_range(int i1, int j1, int i2, int j2) {
-        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
+        if (i1 < 0 || j1 < 0 || i1 > i2 || j1 > j2)
             throw std::out_of_range("Indexes out of bounds");
+        // Ajustar al límite real de datos — no hay nada que borrar más allá
+        i2 = std::min(i2, maxRow);
+        j2 = std::min(j2, maxCol);
+        if (i2 < i1 || j2 < j1) return true;
 
 
         HeadNode<T>* row = rowHead;
@@ -325,100 +345,77 @@ public:
     }
 
     // Suma de todos los elementos en una fila
-    T sum_row(int i){
-        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
-
-        if (i < 0 || i > maxRow) { // Índice negativo o fuera del índice de fila máximo en la matriz
+    double sum_row(int i) {
+        if (i < 0 || i > maxRow)
             throw std::out_of_range("Index out of bounds");
-        }
 
         HeadNode<T>* temp1 = rowHead;
-        while (temp1 != nullptr && temp1->index < i) { // Recorrer índices de fila
+        while (temp1 != nullptr && temp1->index < i)
             temp1 = temp1->next;
-        }
 
-        if (temp1 == nullptr || temp1->index != i) {
-            return T{};
-        }
+        if (temp1 == nullptr || temp1->index != i)
+            return 0.0;
 
         Node<T>* temp2 = temp1->first;
-        T sumatoria{};
-        while (temp2 != nullptr) { // Recorrer celdas en la fila
-            sumatoria += temp2->data;
+        double sumatoria = 0.0;
+        while (temp2 != nullptr) {
+            sumatoria += cellToDouble(temp2->data);
             temp2 = temp2->nextInRow;
         }
-
-        return sumatoria; // Retornar suma
+        return sumatoria;
     }
 
     // Suma de todos los elementos en una columna
-    T sum_col(int j){
-        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
-
-        if (j < 0 || j > maxCol) { // Índice negativo o fuera del índice de columna máximo en la matriz
+    double sum_col(int j) {
+        if (j < 0 || j > maxCol)
             throw std::out_of_range("Index out of bounds");
-        }
 
         HeadNode<T>* temp1 = colHead;
-        while (temp1 != nullptr && temp1->index < j) { // Recorrer índices de columna
+        while (temp1 != nullptr && temp1->index < j)
             temp1 = temp1->next;
-        }
 
-        if (temp1 == nullptr || temp1->index != j) {
-            return T{};
-        }
+        if (temp1 == nullptr || temp1->index != j)
+            return 0.0;
 
         Node<T>* temp2 = temp1->first;
-        T sumatoria{};
-        while (temp2 != nullptr) { // Recorrer celdas en la columna
-            sumatoria += temp2->data;
+        double sumatoria = 0.0;
+        while (temp2 != nullptr) {
+            sumatoria += cellToDouble(temp2->data);
             temp2 = temp2->nextInCol;
         }
-
-        return sumatoria; // Retornar suma
+        return sumatoria;
     }
 
     // Suma de valores en un rango de celdas
-    T sum_range(int i1, int j1, int i2, int j2){
-        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
-
-        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2) {
+    double sum_range(int i1, int j1, int i2, int j2) {
+        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
             throw std::out_of_range("Indexes out of bounds");
-        }
 
-        T sumatoria{};
+        double sumatoria = 0.0;
         HeadNode<T>* row = rowHead;
-        while (row != nullptr && row->index < i1){ // Saltar índices de fila anteriores al inicio del rango
+        while (row != nullptr && row->index < i1)
             row = row->next;
-        }
 
-        while (row != nullptr && row->index <= i2) { // Recorrer filas dentro del rango
-
+        while (row != nullptr && row->index <= i2) {
             Node<T>* curr = row->first;
-            while (curr != nullptr && curr->col < j1) { // Saltar columnas anteriores al inicio del rango
+            while (curr != nullptr && curr->col < j1)
+                curr = curr->nextInRow;
+            while (curr != nullptr && curr->col <= j2) {
+                sumatoria += cellToDouble(curr->data);
                 curr = curr->nextInRow;
             }
-
-            while (curr != nullptr && curr->col <= j2) { // Sumar valores de celdas dentro del rango
-                sumatoria += curr->data;
-                curr = curr->nextInRow;
-            }
-
             row = row->next;
         }
-
-        return sumatoria; // Retornar suma
+        return sumatoria;
     }
 
     // Máximo valor en un rango de celdas
-    T max_range(int i1, int j1, int i2, int j2) {
-        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
-
+    double max_range(int i1, int j1, int i2, int j2) {
         if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
             throw std::out_of_range("Indexes out of bounds");
 
         bool found = false;
-        T maxVal{};
+        double maxVal = 0.0;
 
         HeadNode<T>* row = rowHead;
         while (row && row->index < i1) row = row->next;
@@ -427,10 +424,8 @@ public:
             Node<T>* curr = row->first;
             while (curr) {
                 if (curr->col >= j1 && curr->col <= j2) {
-                    if (!found || curr->data > maxVal) {
-                        maxVal = curr->data;
-                        found = true;
-                    }
+                    double d = cellToDouble(curr->data);
+                    if (!found || d > maxVal) { maxVal = d; found = true; }
                 }
                 curr = curr->nextInRow;
             }
@@ -442,14 +437,12 @@ public:
     }
 
     // Mínimo valor en un rango de celdas
-    T min_range(int i1, int j1, int i2, int j2) {
-        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
-
+    double min_range(int i1, int j1, int i2, int j2) {
         if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
             throw std::out_of_range("Indexes out of bounds");
 
         bool found = false;
-        T minVal{};
+        double minVal = 0.0;
 
         HeadNode<T>* row = rowHead;
         while (row && row->index < i1) row = row->next;
@@ -458,10 +451,8 @@ public:
             Node<T>* curr = row->first;
             while (curr) {
                 if (curr->col >= j1 && curr->col <= j2) {
-                    if (!found || curr->data < minVal) {
-                        minVal = curr->data;
-                        found = true;
-                    }
+                    double d = cellToDouble(curr->data);
+                    if (!found || d < minVal) { minVal = d; found = true; }
                 }
                 curr = curr->nextInRow;
             }
@@ -474,11 +465,10 @@ public:
 
     // Promedio de valores en un rango de celdas
     double avg_range(int i1, int j1, int i2, int j2) {
-        static_assert(std::is_arithmetic<T>::value, "T must be a numeric type");
+        if (i1 < 0 || j1 < 0 || i2 > maxRow || j2 > maxCol || i1 > i2 || j1 > j2)
+            throw std::out_of_range("Indexes out of bounds");
 
-        if (i1 < 0 or j1 < 0 or i2 > maxRow or j2 > maxCol or i1 > i2 or j1 > j2) throw std::out_of_range("Indexes out of bounds");
-
-        double suma = 0;
+        double suma = 0.0;
         int count = 0;
 
         HeadNode<T>* row = rowHead;
@@ -486,12 +476,11 @@ public:
 
         while (row && row->index <= i2) {
             Node<T>* curr = row->first;
-            while(curr) {
-                if(curr->col >= j1 && curr->col <=j2) {
-                    suma+= curr->data;
+            while (curr) {
+                if (curr->col >= j1 && curr->col <= j2) {
+                    suma += cellToDouble(curr->data);
                     count++;
                 }
-
                 curr = curr->nextInRow;
             }
             row = row->next;

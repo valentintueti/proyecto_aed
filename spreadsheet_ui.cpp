@@ -8,11 +8,11 @@
 // ---- autocomplete data ----
 
 static const std::vector<std::string> CELL_COMPLETIONS = {
-    "SUMA(", "MAX(", "MIN(", "PROMEDIO(", "MAXIMO(", "MINIMO("
+    "SUMA(", "MAX(", "MIN(", "PROMEDIO(", "MAXIMO(", "MINIMO(", "CONTAR("
 };
 
 static const std::vector<std::string> CMD_COMPLETIONS = {
-    "SUMA(", "MAX(", "MIN(", "PROMEDIO(",
+    "SUMA(", "MAX(", "MIN(", "PROMEDIO(", "CONTAR(",
     "ELIMINAR_FILA(", "ELIMINAR_COL(", "ELIMINAR(",
     "LISTAR", "VER_FILA(", "VER_COL("
 };
@@ -23,13 +23,142 @@ static const std::map<std::string, std::string> FUNC_HINTS = {
     {"MIN",           "MIN(A1:B5)"},
     {"MAXIMO",        "MAXIMO(A1:B5)"},
     {"MINIMO",        "MINIMO(A1:B5)"},
-    {"PROMEDIO",      "PROMEDIO(A1:B5)"},
+    {"PROMEDIO",      "PROMEDIO(A1:B5)   o   PROMEDIO(A)   o   PROMEDIO(1)"},
+    {"CONTAR",        "CONTAR(A1:B5)   o   CONTAR(A)   o   CONTAR(1)"},
     {"ELIMINAR_FILA", "ELIMINAR_FILA(3)   → borra fila 3"},
     {"ELIMINAR_COL",  "ELIMINAR_COL(B)    → borra col B"},
     {"ELIMINAR",      "ELIMINAR(A1:C4)    → borra rango"},
     {"VER_FILA",      "VER_FILA(2)        → muestra fila 2"},
     {"VER_COL",       "VER_COL(B)         → muestra col B"},
 };
+
+// ---- undo / clipboard ----
+
+static constexpr int MAX_UNDO = 30;
+
+void SpreadsheetUI::pushUndo() {
+    std::vector<CellEntry> snap;
+    for (auto& n : mat.getAllNodes()) {
+        std::string formula;
+        auto it = cellText.find({n.row, n.col});
+        if (it != cellText.end()) formula = it->second;
+        snap.push_back({n.row, n.col, n.data, formula});
+    }
+    undoStack.push_back(snap);
+    if ((int)undoStack.size() > MAX_UNDO) undoStack.pop_front();
+}
+
+void SpreadsheetUI::undo() {
+    if (undoStack.empty()) return;
+    auto snap = undoStack.back();
+    undoStack.pop_back();
+
+    // Remove all current nodes
+    auto current = mat.getAllNodes();
+    for (auto& n : current) try { mat.remove(n.row, n.col); } catch(...) {}
+    cellText.clear();
+
+    // Restore snapshot
+    for (auto& e : snap) {
+        mat.set(e.row, e.col, e.val);
+        if (!e.formula.empty()) cellText[{e.row, e.col}] = e.formula;
+    }
+}
+
+void SpreadsheetUI::copySelection() {
+    int r1 = std::min(selRow, selRow2 < 0 ? selRow : selRow2);
+    int r2 = std::max(selRow, selRow2 < 0 ? selRow : selRow2);
+    int c1 = std::min(selCol, selCol2 < 0 ? selCol : selCol2);
+    int c2 = std::max(selCol, selCol2 < 0 ? selCol : selCol2);
+
+    clipboard.clear();
+    for (int r = r1; r <= r2; r++) {
+        for (int c = c1; c <= c2; c++) {
+            if (c > c1) clipboard += '\t';
+            clipboard += getCellFormulaText(r, c);
+        }
+        clipboard += '\n';
+    }
+    sf::Clipboard::setString(clipboard);
+}
+
+void SpreadsheetUI::pasteAt(int startRow, int startCol) {
+    std::string clip = sf::Clipboard::getString();
+    if (clip.empty()) clip = clipboard;
+    if (clip.empty()) return;
+    pushUndo();
+    int r = startRow, c = startCol;
+    std::string cell;
+    for (char ch : clip) {
+        if (ch == '\t') { setCellValue(r, c++, cell); cell.clear(); }
+        else if (ch == '\n') { setCellValue(r++, c, cell); cell.clear(); c = startCol; }
+        else cell += ch;
+    }
+}
+
+// ---- formula range selection helpers ----
+
+bool SpreadsheetUI::isFormulaOpen() const {
+    if (!editing || editText.empty() || editText[0] != '=') return false;
+    int depth = 0;
+    for (char ch : editText) { if (ch == '(') depth++; else if (ch == ')') depth--; }
+    return depth > 0;
+}
+
+static size_t findInsertPos(const std::string& editText) {
+    size_t p = editText.rfind('(');
+    size_t q = editText.rfind(',');
+    return (q != std::string::npos && q > p) ? q + 1 : p + 1;
+}
+
+void SpreadsheetUI::insertFormulaRef(int r, int c) {
+    std::string ref = colToStr(c) + std::to_string(r + 1);
+    size_t pos = findInsertPos(editText);
+    editText = editText.substr(0, pos) + ref;
+    updateSuggestions();
+}
+
+void SpreadsheetUI::insertFormulaRange(int r1, int c1, int r2, int c2) {
+    int minR = std::min(r1,r2), maxR = std::max(r1,r2);
+    int minC = std::min(c1,c2), maxC = std::max(c1,c2);
+    std::string ref;
+    if (minR == maxR && minC == maxC)
+        ref = colToStr(minC) + std::to_string(minR + 1);
+    else
+        ref = colToStr(minC) + std::to_string(minR+1) + ":" +
+              colToStr(maxC) + std::to_string(maxR+1);
+    size_t pos = findInsertPos(editText);
+    editText = editText.substr(0, pos) + ref;
+    updateSuggestions();
+}
+
+// ---- delete selection ----
+
+void SpreadsheetUI::executeDeleteSelection() {
+    int r1 = std::min(selRow, selRow2 < 0 ? selRow : selRow2);
+    int r2 = std::max(selRow, selRow2 < 0 ? selRow : selRow2);
+    int c1 = std::min(selCol, selCol2 < 0 ? selCol : selCol2);
+    int c2 = std::max(selCol, selCol2 < 0 ? selCol : selCol2);
+    pushUndo();
+    deleteRange(r1, c1, r2, c2);
+    recalcAllFormulas();
+    selRow2 = selCol2 = -1;
+}
+
+// ---- formula recalculation ----
+
+void SpreadsheetUI::recalcAllFormulas() {
+    // Primero eliminar todos los valores de las celdas fórmula para evitar
+    // que una fórmula se incluya a sí misma en el cálculo (ej. =SUMA(C) en C5)
+    for (auto& [key, _] : cellText)
+        try { mat.remove(key.first, key.second); } catch(...) {}
+
+    // Luego re-evaluar con la matriz limpia de resultados anteriores
+    for (auto& [key, formula] : cellText) {
+        double val = evalFormula(formula, mat);
+        mat.set(key.first, key.second, CellValue{val});
+    }
+}
 
 // ---- constructor ----
 
@@ -68,7 +197,8 @@ bool SpreadsheetUI::loadFont() {
 // ---- cell data helpers ----
 
 static std::string formatNum(double v) {
-    if (std::isnan(v) || std::isinf(v)) return "ERR";
+    if (std::isnan(v))  return "#!VALOR!";
+    if (std::isinf(v))  return "#!DIV/0!";
     if (v >= -1e15 && v <= 1e15 && (double)(long long)v == v)
         return std::to_string((long long)v);
     std::ostringstream os; os << v; return os.str();
@@ -83,18 +213,17 @@ void SpreadsheetUI::setCellValue(int r, int c, const std::string& text) {
     if (text.empty()) { deleteCell(r, c); return; }
     if (text[0] == '=') {
         double val = evalFormula(text, mat);
-        mat.set(r, c, val);
+        // update() modifica si ya existe el nodo; set() lo crea si no existe
+        if (!mat.update(r, c, CellValue{val}))
+            mat.set(r, c, CellValue{val});
         cellText[{r, c}] = text;
     } else {
-        try {
-            double val = std::stod(text);
+        cellText.erase({r, c});
+        CellValue val;
+        try { val = CellValue{std::stod(text)}; }
+        catch(...) { val = CellValue{text}; }
+        if (!mat.update(r, c, val))
             mat.set(r, c, val);
-            cellText.erase({r, c});
-        } catch(...) {
-            // Non-numeric text: store as text cell, no numeric entry in mat
-            try { mat.remove(r, c); } catch(...) {}
-            cellText[{r, c}] = text;
-        }
     }
 }
 
@@ -127,22 +256,28 @@ std::string SpreadsheetUI::getCellFormulaText(int r, int c) const {
     auto it = cellText.find({r, c});
     if (it != cellText.end()) return it->second;
     try {
-        double v = mat.get(r, c);
-        return (v == 0.0) ? "" : formatNum(v);
+        CellValue v = mat.get(r, c);
+        if (auto* d = std::get_if<double>(&v)) return (*d == 0.0) ? "" : formatNum(*d);
+        if (auto* s = std::get_if<std::string>(&v)) return *s;
+        return "";
     } catch(...) { return ""; }
 }
 
 std::string SpreadsheetUI::getCellDisplayText(int r, int c) const {
     auto it = cellText.find({r, c});
     if (it != cellText.end()) {
-        if (!it->second.empty() && it->second[0] == '=') {
-            try { return formatNum(mat.get(r, c)); } catch(...) { return "0"; }
-        }
-        return it->second;
+        // Formula cell: display the computed double stored in mat
+        try {
+            CellValue v = mat.get(r, c);
+            if (auto* d = std::get_if<double>(&v)) return formatNum(*d);
+            return "0";
+        } catch(...) { return "0"; }
     }
     try {
-        double v = mat.get(r, c);
-        return (v == 0.0) ? "" : formatNum(v);
+        CellValue v = mat.get(r, c);
+        if (auto* d = std::get_if<double>(&v)) return (*d == 0.0) ? "" : formatNum(*d);
+        if (auto* s = std::get_if<std::string>(&v)) return *s;
+        return "";
     } catch(...) { return ""; }
 }
 
@@ -248,10 +383,13 @@ void SpreadsheetUI::drawAutocomplete() {
 // ---- input handling ----
 
 void SpreadsheetUI::commitEdit() {
+    pushUndo();
     setCellValue(selRow, selCol, editText);
+    recalcAllFormulas();
     editing = false;
     editText.clear();
     suggestions.clear();
+    formulaCellRow = formulaCellCol = -1;
     toolbarResult.clear();
     toolbarError = false;
 }
@@ -276,24 +414,24 @@ std::string SpreadsheetUI::runToolbarCommand(const std::string& cmd) {
     std::string a1, a2;
     if ((uc.find("ELIMINAR_FILA(") == 0 || uc.find("DELETE_ROW(") == 0) && parseParen(a1, a2)) {
         bool ok = false;
-        try { int r = std::stoi(a1)-1; deleteRow(r); ok = true; } catch(...) {}
+        try { int r = std::stoi(a1)-1; pushUndo(); deleteRow(r); recalcAllFormulas(); ok = true; } catch(...) {}
         return ok ? "Fila " + a1 + " eliminada" : "Error: fila no encontrada";
     }
     if ((uc.find("ELIMINAR_COL(") == 0 || uc.find("DELETE_COL(") == 0) && parseParen(a1, a2)) {
         std::string ua1 = a1; std::transform(ua1.begin(),ua1.end(),ua1.begin(),[](unsigned char c){return std::toupper(c);});
-        deleteCol(strToCol(ua1));
+        pushUndo(); deleteCol(strToCol(ua1)); recalcAllFormulas();
         return "Columna " + ua1 + " eliminada";
     }
     if ((uc.find("ELIMINAR(") == 0 || uc.find("DELETE(") == 0) && parseParen(a1, a2)) {
         if (!a2.empty()) {
             auto c1 = parseCell(a1), c2 = parseCell(a2);
             if (c1.first < 0 || c2.first < 0) return "Error: rango invalido";
-            deleteRange(c1.first,c1.second,c2.first,c2.second);
+            pushUndo(); deleteRange(c1.first,c1.second,c2.first,c2.second); recalcAllFormulas();
             return "Rango eliminado";
         }
         auto c = parseCell(a1);
         if (c.first < 0) return "Error: celda invalida";
-        deleteCell(c.first, c.second);
+        pushUndo(); deleteCell(c.first, c.second); recalcAllFormulas();
         return "Celda eliminada";
     }
 
@@ -360,36 +498,69 @@ void SpreadsheetUI::handleKey(const sf::Event::KeyEvent& key, int visCols, int v
         if (key.code == sf::Keyboard::Up && !suggestions.empty()) {
             sugIdx = (sugIdx + (int)suggestions.size() - 1) % (int)suggestions.size();
         }
-        if (key.code == sf::Keyboard::BackSpace && !editText.empty()) {
-            editText.pop_back();
-            updateSuggestions();
+        if (key.code == sf::Keyboard::Delete) {
+            editText.clear(); suggestions.clear();
+            editing = false;
+            executeDeleteSelection();
+        }
+        if (key.code == sf::Keyboard::BackSpace) {
+            if (!editText.empty()) { editText.pop_back(); updateSuggestions(); }
+            else { editing = false; executeDeleteSelection(); }
         }
         return;
     }
 
-    // Navigation
-    if (key.code == sf::Keyboard::Up)    { selRow = std::max(0, selRow-1); selRow2 = selCol2 = -1; }
-    if (key.code == sf::Keyboard::Down)  { selRow++;                        selRow2 = selCol2 = -1; }
-    if (key.code == sf::Keyboard::Left)  { selCol = std::max(0, selCol-1); selRow2 = selCol2 = -1; }
-    if (key.code == sf::Keyboard::Right) { selCol++;                        selRow2 = selCol2 = -1; }
+    // Ctrl / Cmd shortcuts (Cmd = LSystem on macOS)
+    bool ctrl = key.control || key.system;
+    if (ctrl && key.code == sf::Keyboard::C) { copySelection(); return; }
+    if (ctrl && key.code == sf::Keyboard::V) { pasteAt(selRow, selCol); return; }
+    if (ctrl && key.code == sf::Keyboard::Z) { undo(); return; }
+    // Ctrl+Home (Ctrl+Fn+← en Mac) o Ctrl+Escape → volver a A1
+    if (ctrl && (key.code == sf::Keyboard::Home || key.code == sf::Keyboard::Escape)) {
+        selRow = selCol = scrollX = scrollY = 0;
+        selRow2 = selCol2 = -1; return;
+    }
+    // Escape solo (sin editar) → volver a A1 también
+    if (key.code == sf::Keyboard::Escape) {
+        selRow = selCol = scrollX = scrollY = 0;
+        selRow2 = selCol2 = -1; return;
+    }
+    // Home solo (Fn+←) → inicio de la fila (col A)
+    if (key.code == sf::Keyboard::Home) {
+        selCol = scrollX = 0; selRow2 = selCol2 = -1; return;
+    }
 
-    if (key.code == sf::Keyboard::Delete) {
-        if (selRow2 >= 0 && selCol2 >= 0) {
-            int r1=std::min(selRow,selRow2), r2=std::max(selRow,selRow2);
-            int c1=std::min(selCol,selCol2), c2=std::max(selCol,selCol2);
-            deleteRange(r1,c1,r2,c2);
-        } else {
-            deleteCell(selRow, selCol);
-        }
-        selRow2 = selCol2 = -1;
+    // Navigation — plain arrows move cursor; Shift+arrows extend selection
+    bool shift = key.shift;
+    if (key.code == sf::Keyboard::Up) {
+        if (shift) { if (selRow2 < 0) { selRow2 = selRow; selCol2 = selCol; } selRow2 = std::max(0, selRow2-1); }
+        else       { selRow = std::max(0, selRow-1); selRow2 = selCol2 = -1; }
+    }
+    if (key.code == sf::Keyboard::Down) {
+        if (shift) { if (selRow2 < 0) { selRow2 = selRow; selCol2 = selCol; } selRow2++; }
+        else       { selRow++;         selRow2 = selCol2 = -1; }
+    }
+    if (key.code == sf::Keyboard::Left) {
+        if (shift) { if (selRow2 < 0) { selRow2 = selRow; selCol2 = selCol; } selCol2 = std::max(0, selCol2-1); }
+        else       { selCol = std::max(0, selCol-1); selRow2 = selCol2 = -1; }
+    }
+    if (key.code == sf::Keyboard::Right) {
+        if (shift) { if (selRow2 < 0) { selRow2 = selRow; selCol2 = selCol; } selCol2++; }
+        else       { selCol++;          selRow2 = selCol2 = -1; }
+    }
+
+    // En macOS la tecla ⌫ es BackSpace en SFML, no Delete
+    if (key.code == sf::Keyboard::Delete || key.code == sf::Keyboard::BackSpace) {
+        executeDeleteSelection();
     }
 
     if (key.code == sf::Keyboard::F2) {
         editing = true;
+        formulaCellRow = selRow; formulaCellCol = selCol;
         editText = getCellFormulaText(selRow, selCol);
     }
 
-    // Tab → toolbar / formula bar
+    // Tab → command toolbar
     if (key.code == sf::Keyboard::Tab) {
         toolbarActive = true;
         toolbarInput.clear();
@@ -398,17 +569,22 @@ void SpreadsheetUI::handleKey(const sf::Event::KeyEvent& key, int visCols, int v
     }
 
     // Auto-scroll
-    if (selRow < scrollY) scrollY = selRow;
-    if (selRow >= scrollY + visRows - 1) scrollY = selRow - visRows + 2;
-    if (selCol < scrollX) scrollX = selCol;
-    if (selCol >= scrollX + visCols - 1) scrollX = selCol - visCols + 2;
+    int activeR = (selRow2 >= 0) ? selRow2 : selRow;
+    int activeC = (selCol2 >= 0) ? selCol2 : selCol;
+    if (activeR < scrollY) scrollY = activeR;
+    if (activeR >= scrollY + visRows - 1) scrollY = activeR - visRows + 2;
+    if (activeC < scrollX) scrollX = activeC;
+    if (activeC >= scrollX + visCols - 1) scrollX = activeC - visCols + 2;
 }
 
 void SpreadsheetUI::handleEvent(const sf::Event& ev, int visCols, int visRows) {
     if (ev.type == sf::Event::Closed) { window.close(); return; }
 
     if (ev.type == sf::Event::MouseWheelScrolled) {
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift))
+        bool horizontal = (ev.mouseWheelScroll.wheel == sf::Mouse::HorizontalWheel)
+                       || sf::Keyboard::isKeyPressed(sf::Keyboard::LShift)
+                       || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+        if (horizontal)
             scrollX = std::max(0, scrollX - (int)(ev.mouseWheelScroll.delta * 3));
         else
             scrollY = std::max(0, scrollY - (int)(ev.mouseWheelScroll.delta * 3));
@@ -418,27 +594,63 @@ void SpreadsheetUI::handleEvent(const sf::Event& ev, int visCols, int visRows) {
     if (ev.type == sf::Event::MouseButtonPressed && ev.mouseButton.button == sf::Mouse::Left) {
         int mx = ev.mouseButton.x, my = ev.mouseButton.y;
         if (my < TOOLBAR_H) {
-            // Click formula bar → activate toolbar
-            if (editing) commitEdit();
-            toolbarActive = true;
-            toolbarInput.clear();
-            toolbarResult.clear();
-            toolbarError = false;
-        } else {
+            // Click formula bar → edit current cell's formula (like Excel)
             if (editing) commitEdit();
             toolbarActive = false;
             toolbarResult.clear();
             toolbarError = false;
+            editing = true;
+            editText = getCellFormulaText(selRow, selCol);
             suggestions.clear();
+            updateSuggestions();
+        } else {
             int clickCol = (mx - HDR_W) / CELL_W + scrollX;
             int clickRow = (my - TOOLBAR_H - HDR_H) / CELL_H + scrollY;
             if (clickCol >= 0 && clickRow >= 0) {
+                // Formula range selection: if editing a formula with open '('
+                if (isFormulaOpen()) {
+                    insertFormulaRef(clickRow, clickCol);
+                    formulaDragAnchorRow = clickRow;
+                    formulaDragAnchorCol = clickCol;
+                    isDragging = true;
+                    return;
+                }
+                if (editing) commitEdit();
+                toolbarActive = false;
+                toolbarResult.clear();
+                toolbarError = false;
+                suggestions.clear();
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift))
                     { selRow2 = clickRow; selCol2 = clickCol; }
-                else
-                    { selRow = clickRow; selCol = clickCol; selRow2 = selCol2 = -1; }
+                else {
+                    selRow = clickRow; selCol = clickCol;
+                    selRow2 = selCol2 = -1;
+                    isDragging = true;
+                }
             }
         }
+        return;
+    }
+
+    if (ev.type == sf::Event::MouseMoved && isDragging) {
+        int mx = ev.mouseMove.x, my = ev.mouseMove.y;
+        int dragCol = (mx - HDR_W) / CELL_W + scrollX;
+        int dragRow = (my - TOOLBAR_H - HDR_H) / CELL_H + scrollY;
+        if (dragCol >= 0 && dragRow >= 0) {
+            if (isFormulaOpen() && formulaDragAnchorRow >= 0) {
+                // Update formula range reference live
+                insertFormulaRange(formulaDragAnchorRow, formulaDragAnchorCol, dragRow, dragCol);
+            } else {
+                selRow2 = dragRow;
+                selCol2 = dragCol;
+            }
+        }
+        return;
+    }
+
+    if (ev.type == sf::Event::MouseButtonReleased && ev.mouseButton.button == sf::Mouse::Left) {
+        isDragging = false;
+        formulaDragAnchorRow = formulaDragAnchorCol = -1;
         return;
     }
 
@@ -509,7 +721,7 @@ void SpreadsheetUI::drawHeaders(int maxCol) {
 
     // Row headers
     float H = (float)window.getSize().y;
-    for (int r = scrollY; (r - scrollY) * CELL_H < H - TOOLBAR_H - HDR_H; r++) {
+    for (int r = scrollY; (r - scrollY) * CELL_H < H - TOOLBAR_H - HDR_H - STATUS_H; r++) {
         float y = TOOLBAR_H + HDR_H + (r - scrollY) * CELL_H;
         bool sel = (selRow2 < 0) ? (r == selRow) :
                    (r >= std::min(selRow,selRow2) && r <= std::max(selRow,selRow2));
@@ -529,16 +741,14 @@ void SpreadsheetUI::drawCells(int maxCol, int visRows) {
     std::map<std::pair<int,int>, std::string> display;
     for (auto& n : mat.getAllNodes()) {
         auto key = std::make_pair(n.row, n.col);
-        auto it = cellText.find(key);
-        if (it != cellText.end() && !it->second.empty() && it->second[0] == '=')
-            display[key] = formatNum(n.data);
-        else
-            display[key] = formatNum(n.data);
-    }
-    // Override with text cells
-    for (auto& [key, txt] : cellText) {
-        if (!txt.empty() && txt[0] != '=')
-            display[key] = txt;
+        if (cellText.count(key)) {
+            // Formula cell: show computed double
+            if (auto* d = std::get_if<double>(&n.data)) display[key] = formatNum(*d);
+        } else if (auto* d = std::get_if<double>(&n.data)) {
+            display[key] = formatNum(*d);
+        } else if (auto* s = std::get_if<std::string>(&n.data)) {
+            display[key] = *s;
+        }
     }
 
     int r1sel = (selRow2 < 0) ? selRow : std::min(selRow, selRow2);
@@ -546,7 +756,7 @@ void SpreadsheetUI::drawCells(int maxCol, int visRows) {
     int c1sel = (selCol2 < 0) ? selCol : std::min(selCol, selCol2);
     int c2sel = (selCol2 < 0) ? selCol : std::max(selCol, selCol2);
 
-    for (int r = scrollY; (r - scrollY) * CELL_H < H - TOOLBAR_H - HDR_H; r++) {
+    for (int r = scrollY; (r - scrollY) * CELL_H < H - TOOLBAR_H - HDR_H - STATUS_H; r++) {
         for (int c = scrollX; (c - scrollX) * CELL_W < W - HDR_W; c++) {
             float x = HDR_W + (c - scrollX) * CELL_W;
             float y = TOOLBAR_H + HDR_H + (r - scrollY) * CELL_H;
@@ -573,13 +783,48 @@ void SpreadsheetUI::drawCells(int maxCol, int visRows) {
 
             if (!txt.empty()) {
                 sf::Text t(txt, font, 12);
-                t.setFillColor(C_BLACK);
-                // Clip text inside cell (simple: just truncate visually via position)
+                bool isErr = (txt.size() > 1 && txt[0] == '#' && txt[1] == '!');
+                t.setFillColor(isErr ? C_ERR : C_BLACK);
                 t.setPosition(x + 4, y + 5);
-                // Simple clipping: only draw if text width fits, otherwise truncate string
                 window.draw(t);
             }
         }
+    }
+}
+
+void SpreadsheetUI::drawStatusBar() {
+    float W = (float)window.getSize().x;
+    float H = (float)window.getSize().y;
+    float y  = H - STATUS_H;
+
+    drawRect(0, y, W, STATUS_H, C_STATUS, C_LILAC_DK, 0.f);
+
+    // Only show aggregates when a range (more than 1 cell) is selected
+    int r1 = std::min(selRow,  selRow2 < 0 ? selRow  : selRow2);
+    int r2 = std::max(selRow,  selRow2 < 0 ? selRow  : selRow2);
+    int c1 = std::min(selCol,  selCol2 < 0 ? selCol  : selCol2);
+    int c2 = std::max(selCol,  selCol2 < 0 ? selCol  : selCol2);
+    bool isRange = (r1 != r2 || c1 != c2);
+
+    if (isRange) {
+        // Count numeric cells and compute sum in one pass (avoids exception on empty range)
+        double sum = 0.0;
+        int    cnt = 0;
+        for (auto& n : mat.getAllNodes()) {
+            if (n.row >= r1 && n.row <= r2 && n.col >= c1 && n.col <= c2) {
+                if (auto* d = std::get_if<double>(&n.data)) { sum += *d; cnt++; }
+            }
+        }
+        std::string msg = "SUMA: " + formatNum(sum) +
+                          "   CONTAR: " + std::to_string(cnt);
+        if (cnt > 0)
+            msg += "   PROMEDIO: " + formatNum(sum / cnt);
+        drawText(msg, 8, y + 4, 12, C_LILAC_DK);
+    } else {
+        // Single cell: show coordinate + shortcuts hint
+        std::string ref = colToStr(selCol) + std::to_string(selRow + 1);
+        drawText(ref + "   |   Ctrl+Home=A1   Ctrl+C copiar   Ctrl+V pegar   Ctrl+Z deshacer   Tab=comandos   F2=editar",
+                 8, y + 4, 11, C_LILAC_DK);
     }
 }
 
@@ -589,6 +834,7 @@ void SpreadsheetUI::render(int maxCol, int visCols, int visRows) {
     drawHeaders(maxCol);
     drawCells(maxCol, visRows);
     drawAutocomplete(); // siempre encima del grid
+    drawStatusBar();
     window.display();
 }
 
@@ -598,7 +844,7 @@ int SpreadsheetUI::run() {
     while (window.isOpen()) {
         int maxCol = visibleMaxCol();
         int visCols = ((int)window.getSize().x - HDR_W) / CELL_W + 2;
-        int visRows = ((int)window.getSize().y - TOOLBAR_H - HDR_H) / CELL_H + 2;
+        int visRows = ((int)window.getSize().y - TOOLBAR_H - HDR_H - STATUS_H) / CELL_H + 2;
 
         sf::Event ev;
         while (window.pollEvent(ev))
