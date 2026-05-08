@@ -1,0 +1,3 @@
+"C:\Program Files\JetBrains\CLion 2024.2.0.1\bin\cmake\win\x64\bin\cmake.exe" -E rm -f CMakeFiles\PROYECTO.dir/objects.a
+C:\msys64\mingw64\bin\ar.exe qc CMakeFiles\PROYECTO.dir/objects.a @CMakeFiles\PROYECTO.dir\objects1.rsp
+C:\msys64\mingw64\bin\g++.exe -g -Wl,--whole-archive CMakeFiles\PROYECTO.dir/objects.a -Wl,--no-whole-archive -o PROYECTO.exe -Wl,--out-implib,libPROYECTO.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\PROYECTO.dir\linkLibs.rsp
